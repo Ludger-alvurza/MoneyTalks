@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Money Talks - Deteksi Uang Kertas Indonesia</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Money Talks - Deteksi Uang Kertas Indonesia</h1>
+
+      <div class="camera-container">
+        <video id="video" autoplay></video>
+        <canvas id="canvas"></canvas>
+        <div>
+          <button id="cameraButton" class="button">Mulai Kamera</button>
+          <button id="captureButton" class="button" disabled>
+            Ambil Gambar
+          </button>
+          <label for="imageUpload" class="upload-label">Unggah Gambar</label>
+          <input type="file" id="imageUpload" accept="image/*" />
+        </div>
+      </div>
+
+      <div id="capturedImageContainer" style="display: none">
+        <img
+          id="capturedImage"
+          class="captured-image"
+          alt="Gambar Tertangkap"
+        />
+      </div>
+
+      <div class="result" id="resultText">
+        Hasil deteksi akan muncul di sini
+      </div>
+    </div>
+
+    <!-- Load TensorFlow.js from local -->
+    <script src="js/lib/tf.min.js"></script>
+
+    <!-- Load your custom scripts -->
+    <script src="js/model.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/imageUtils.js"></script>
+    <script src="js/router.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
