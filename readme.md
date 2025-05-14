@@ -1,5 +1,7 @@
 # Money Talks - Indonesian Rupiah Detector
 
+Tekan Ctrl + Shift + V (Windows/Linux) di file ini buat tampilan lebih enak di baca
+
 A simple web application for detecting Indonesian Rupiah denominations using a trained machine learning model. This application uses a camera to capture images and predict the denomination of Rupiah banknotes.
 
 ## Features
