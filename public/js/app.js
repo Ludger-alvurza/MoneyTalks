@@ -73,13 +73,20 @@ async function initApp() {
   }
 
   try {
+    // Use the same model path as defined in model.js
+    const modelPath = "./models_converted_2/model.json";
+
     // Verify if model files exist by checking the main JSON file
-    const modelResponse = await fetch("./models/model.json", {
+    const modelResponse = await fetch(modelPath, {
       method: "HEAD",
     }).catch(() => {
-      // Try alternative path if primary fails
-      return fetch("./models_converted/model.json", {
+      // Try alternative paths defined in model.js
+      return fetch("./models/model.json", {
         method: "HEAD",
+      }).catch(() => {
+        return fetch("./models_converted/model.json", {
+          method: "HEAD",
+        });
       });
     });
 
@@ -111,7 +118,7 @@ async function initApp() {
       }
     } else {
       showStatus(
-        "ERROR: File model tidak ditemukan. Pastikan file ada di folder /models atau /models_converted.",
+        "ERROR: File model tidak ditemukan. Pastikan file ada di folder /models, /models_converted, atau /models_converted_2.",
         true
       );
     }
@@ -225,69 +232,7 @@ function toggleCamera() {
   }
 }
 
-// Enhanced image processing before prediction
-function preprocessImage(sourceCanvas) {
-  // Create a new canvas for processing
-  const processedCanvas = document.createElement("canvas");
-  processedCanvas.width = 224;
-  processedCanvas.height = 224;
-  const processedCtx = processedCanvas.getContext("2d");
-
-  // Get dimensions of source
-  const width = sourceCanvas.width;
-  const height = sourceCanvas.height;
-
-  // Create square crop from center
-  const size = Math.min(width, height);
-  const offsetX = (width - size) / 2;
-  const offsetY = (height - size) / 2;
-
-  // Draw center crop
-  processedCtx.drawImage(
-    sourceCanvas,
-    offsetX,
-    offsetY,
-    size,
-    size,
-    0,
-    0,
-    224,
-    224
-  );
-
-  // Apply slight contrast enhancement
-  processedCtx.filter = "contrast(115%) brightness(105%)";
-  processedCtx.drawImage(processedCanvas, 0, 0);
-  processedCtx.filter = "none";
-
-  if (isDebugMode) {
-    // Show processing stages in debug mode
-    debugInfoElement.innerHTML = "";
-
-    // Original image thumbnail
-    const origThumb = document.createElement("canvas");
-    origThumb.width = 100;
-    origThumb.height = 100 * (sourceCanvas.height / sourceCanvas.width);
-    const origCtx = origThumb.getContext("2d");
-    origCtx.drawImage(sourceCanvas, 0, 0, origThumb.width, origThumb.height);
-
-    // Processed image thumbnail
-    const procThumb = document.createElement("canvas");
-    procThumb.width = 100;
-    procThumb.height = 100;
-    const procCtx = procThumb.getContext("2d");
-    procCtx.drawImage(processedCanvas, 0, 0, procThumb.width, procThumb.height);
-
-    debugInfoElement.innerHTML = "<p>Original:</p>";
-    debugInfoElement.appendChild(origThumb);
-    debugInfoElement.innerHTML += "<p>Processed:</p>";
-    debugInfoElement.appendChild(procThumb);
-  }
-
-  return processedCanvas;
-}
-
-// Capture image and run prediction with improved processing
+// Capture image and run prediction using the model.js predict method directly
 async function captureAndPredict() {
   if (!isCameraStarted || !isModelLoaded) {
     showStatus("Kamera atau model belum siap.", true);
@@ -314,11 +259,8 @@ async function captureAndPredict() {
     // Small delay to allow status update to render
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    // Preprocess image for better recognition
-    const processedCanvas = preprocessImage(canvasElement);
-
-    // Run prediction with enhanced model
-    const result = await window.modelHandler.predict(processedCanvas);
+    // Run prediction directly with model.js handler (it handles preprocessing internally)
+    const result = await window.modelHandler.predict(canvasElement);
 
     // Format and display result
     const denomination = result.className;
@@ -339,7 +281,7 @@ async function captureAndPredict() {
           )}%</li>`;
         });
       debugHTML += "</ul>";
-      debugInfoElement.innerHTML += debugHTML;
+      debugInfoElement.innerHTML = debugHTML;
       debugInfoElement.style.display = "block";
     }
 
@@ -352,7 +294,7 @@ async function captureAndPredict() {
   }
 }
 
-// Handle image upload with improved processing
+// Handle image upload with direct use of model.js
 function setupImageUpload() {
   const fileInput = document.getElementById("imageUpload");
   if (fileInput) {
@@ -380,13 +322,8 @@ function setupImageUpload() {
               showStatus("Memproses gambar...");
 
               try {
-                // Preprocess image for better recognition
-                const processedCanvas = preprocessImage(canvasElement);
-
-                // Run prediction with enhanced model
-                const result = await window.modelHandler.predict(
-                  processedCanvas
-                );
+                // Use model.js predict directly (it handles preprocessing internally)
+                const result = await window.modelHandler.predict(canvasElement);
 
                 // Format and display result
                 const denomination = result.className;
@@ -407,7 +344,7 @@ function setupImageUpload() {
                       ).toFixed(2)}%</li>`;
                     });
                   debugHTML += "</ul>";
-                  debugInfoElement.innerHTML += debugHTML;
+                  debugInfoElement.innerHTML = debugHTML;
                   debugInfoElement.style.display = "block";
                 }
 

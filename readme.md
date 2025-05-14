@@ -122,3 +122,74 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 
 - Based on the model trained by the Money Talks Machine Learning Team
+
+# Workflow Pengerjaan TensorFlow.js untuk User Windows
+
+## 1. Testing Model yang Diberikan oleh Tim ML
+
+### Jika model yang diberikan berformat `SavedModel`
+
+1. Model ini harus dikonversi terlebih dahulu menggunakan `tensorflowjs_converter`.
+2. Jalankan perintah berikut di Command Prompt (CMD) atau Terminal PowerShell. Sesuaikan path input (SavedModel) dan output sesuai kebutuhan:
+   ```cmd
+   tensorflowjs_converter --input_format=tf_saved_model --saved_model_tags=serve .\public\models\saved_model_mobile2 .\models_converted_2\
+   ```
+
+### Catatan Penting:
+
+- Pastikan TensorFlow.js sudah terinstal dengan benar pada environment Python kamu.
+- Konversi akan menghasilkan file seperti yang ada di folder `models_new`.
+
+### Aktivasi Environment TensorFlow
+
+- Sebelum menjalankan perintah `tensorflowjs_converter`, aktifkan environment Python yang sudah terinstal TensorFlow dengan cara berikut (contoh untuk Anaconda):
+  ```cmd
+  conda activate <nama_environment>
+  ```
+- Jika menggunakan `virtualenv`, jalankan:
+  ```cmd
+  .\venv\Scripts\activate
+  ```
+
+### Jika model yang diberikan berformat `.h5`
+
+1. Model ini juga perlu dikonversi, tetapi format inputnya adalah `keras`.
+2. Jalankan perintah berikut untuk konversi:
+   ```cmd
+   tensorflowjs_converter --input_format=keras path\to\your\model.h5 public\kasi_nama_model\
+   ```
+
+---
+
+## 2. Update Path Model di File JavaScript
+
+1. Setelah konversi selesai, pastikan aplikasi web membaca model dari path yang sesuai.
+2. Buka file `model.js` yang ada di folder `public/js`.
+3. Temukan baris berikut:
+   ```javascript
+   const MODEL_PATH = "./models_new/model.json"; // Updated to your new model path
+   ```
+4. Ubah path-nya sesuai dengan lokasi file `model.json` yang dihasilkan oleh `tensorflowjs_converter`. Misalnya:
+   ```javascript
+   const MODEL_PATH = "./models_converted_2/model.json";
+   ```
+
+---
+
+## Catatan Tambahan
+
+### Pastikan TensorFlow.js Sudah Terinstal
+
+Jika belum terinstal, gunakan perintah berikut di terminal/command prompt:
+
+```cmd
+pip install tensorflowjs
+```
+
+### Validasi Hasil Konversi
+
+Setelah konversi, pastikan semua file yang dihasilkan ada di folder output (`model.json`, `group1-shard*`).
+
+---
+
+Jika ada masalah atau perlu penyesuaian lebih lanjut, silakan hubungi tim pengembang! 😊
