@@ -1,4 +1,7 @@
+//Tanpa cropping app.js
 // app.js - Main application logic with improved image processing
+
+// TANPA CROPPING
 
 // DOM Elements
 const videoElement = document.getElementById("video");
@@ -11,6 +14,44 @@ const capturedImageElement = document.getElementById("capturedImage");
 const capturedImageContainer = document.getElementById(
   "capturedImageContainer"
 );
+
+// Debug visualization elements
+const debugImageContainer = document.createElement("div");
+debugImageContainer.className = "debug-image-container";
+debugImageContainer.style.cssText = "margin-top: 20px; text-align: center;";
+document.querySelector(".container").appendChild(debugImageContainer);
+
+// Original image display element
+const originalImageContainer = document.createElement("div");
+originalImageContainer.className = "original-image-container";
+originalImageContainer.style.cssText = "margin-top: 20px; text-align: center;";
+document.querySelector(".container").appendChild(originalImageContainer);
+
+const originalInfoElement = document.createElement("div");
+originalInfoElement.className = "original-info";
+originalInfoElement.style.cssText = "margin: 10px 0; font-weight: bold;";
+originalImageContainer.appendChild(originalInfoElement);
+
+const originalCanvasElement = document.createElement("canvas");
+originalCanvasElement.style.cssText =
+  "border: 2px solid #00f; margin: 10px; max-width: 300px;";
+originalImageContainer.appendChild(originalCanvasElement);
+const originalCtx = originalCanvasElement.getContext("2d");
+
+// Continue with preprocessing display
+const preprocessInfoElement = document.createElement("div");
+preprocessInfoElement.className = "preprocess-info";
+preprocessInfoElement.style.cssText = "margin: 10px 0; font-weight: bold;";
+debugImageContainer.appendChild(preprocessInfoElement);
+
+const debugCanvasElement = document.createElement("canvas");
+debugCanvasElement.width = 224;
+debugCanvasElement.height = 224;
+debugCanvasElement.style.cssText =
+  "border: 2px solid #f00; margin: 10px; max-width: 300px;";
+debugImageContainer.appendChild(debugCanvasElement);
+const debugCtx = debugCanvasElement.getContext("2d");
+
 const debugInfoElement = document.createElement("div");
 debugInfoElement.className = "debug-info";
 debugInfoElement.style.display = "none";
@@ -18,7 +59,7 @@ debugInfoElement.style.display = "none";
 // App State
 let isModelLoaded = false;
 let isCameraStarted = false;
-let isDebugMode = false; // Set to true for debugging model behavior
+let isDebugMode = true; // Set to true to enable debug mode by default
 
 // Audio feedback setup with improved error handling
 const setupAudio = () => {
@@ -63,6 +104,8 @@ async function initApp() {
     const debugButton = document.createElement("button");
     debugButton.textContent = "Toggle Debug Info";
     debugButton.className = "debug-toggle-btn";
+    debugButton.style.cssText =
+      "margin: 10px; padding: 8px 16px; background-color: #2196F3; color: white; border: none; border-radius: 4px;";
     debugButton.addEventListener("click", () => {
       debugInfoElement.style.display =
         debugInfoElement.style.display === "none" ? "block" : "none";
@@ -136,51 +179,60 @@ async function startCamera() {
   try {
     // Try different camera constraints progressively
     const constraints = [
-      // First try: HD back camera
+      // First try: HD back camera (less strict)
       {
         video: {
-          facingMode: { exact: "environment" },
+          facingMode: "environment", // Removed 'exact' constraint which often causes problems
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
       },
-      // Second try: Any back camera
-      {
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      },
-      // Third try: Any camera with HD
+      // Second try: Any camera with HD
       {
         video: {
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
       },
-      // Last resort: Any camera
+      // Third try: Medium resolution
+      {
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+      },
+      // Last resort: Any camera with default resolution
       { video: true },
     ];
 
     let stream = null;
     let errorMsg = "";
+    let constraintUsed = -1;
 
     // Try each constraint until one works
     for (let i = 0; i < constraints.length; i++) {
       try {
         stream = await navigator.mediaDevices.getUserMedia(constraints[i]);
+        constraintUsed = i;
         console.log(`Camera started with constraint set ${i + 1}`);
         break; // Exit loop if successful
       } catch (e) {
         errorMsg = e.message;
-        console.warn(`Failed with constraint set ${i + 1}:`, e);
+        // Log with clearer info about the constraint that failed
+        if (e.name === "OverconstrainedError") {
+          console.warn(
+            `Camera constraint set ${i + 1} is not supported by this device:`,
+            e
+          );
+        } else {
+          console.warn(`Failed with constraint set ${i + 1}:`, e);
+        }
         // Continue to next constraint set
       }
     }
 
     if (!stream) {
-      throw new Error(`No camera available. ${errorMsg}`);
+      throw new Error(`Tidak dapat mengakses kamera. ${errorMsg}`);
     }
 
     videoElement.srcObject = stream;
@@ -188,8 +240,14 @@ async function startCamera() {
     // Wait for video to be ready
     await new Promise((resolve) => {
       videoElement.onloadedmetadata = () => {
-        videoElement.play();
-        resolve();
+        // Add a small timeout to ensure dimensions are available
+        setTimeout(() => {
+          videoElement.play().catch((err) => {
+            console.warn("Video play failed:", err);
+            // Try to continue anyway
+          });
+          resolve();
+        }, 100);
       };
     });
 
@@ -197,15 +255,45 @@ async function startCamera() {
     canvasElement.width = videoElement.videoWidth;
     canvasElement.height = videoElement.videoHeight;
 
+    // Log successful camera initialization with resolution info
+    console.log(
+      `Camera initialized with resolution: ${videoElement.videoWidth}x${videoElement.videoHeight}`
+    );
+
+    // Show status with camera resolution info
+    const cameraResolution = `${videoElement.videoWidth}x${videoElement.videoHeight}`;
+    const constraintSet = constraintUsed + 1;
+
     isCameraStarted = true;
     showStatus(
-      'Kamera aktif. Arahkan ke uang kertas dan tekan "Ambil Gambar".'
+      `Kamera aktif (${cameraResolution}) menggunakan set ${constraintSet}. Arahkan ke uang kertas dan tekan "Ambil Gambar".`
     );
     captureButton.disabled = false;
     startButton.textContent = "Matikan Kamera";
   } catch (error) {
     console.error("Camera error:", error);
-    showStatus(`ERROR: Tidak dapat mengakses kamera. ${error.message}`, true);
+
+    // Provide more helpful error message based on error type
+    let errorMessage = "";
+    if (
+      error.name === "NotAllowedError" ||
+      error.name === "PermissionDeniedError"
+    ) {
+      errorMessage =
+        "Akses kamera ditolak. Berikan izin kamera di pengaturan browser Anda.";
+    } else if (error.name === "NotFoundError") {
+      errorMessage = "Tidak ada kamera yang terdeteksi pada perangkat ini.";
+    } else if (
+      error.name === "NotReadableError" ||
+      error.name === "AbortError"
+    ) {
+      errorMessage =
+        "Kamera sedang digunakan oleh aplikasi lain atau tidak dapat diakses.";
+    } else {
+      errorMessage = `Tidak dapat mengakses kamera: ${error.message}`;
+    }
+
+    showStatus(`ERROR: ${errorMessage}`, true);
   }
 }
 
@@ -232,6 +320,78 @@ function toggleCamera() {
   }
 }
 
+// Function to show original image before preprocessing
+function showOriginalImage(sourceCanvas) {
+  if (!isDebugMode) return;
+
+  // Set canvas dimensions to match source
+  originalCanvasElement.width = sourceCanvas.width;
+  originalCanvasElement.height = sourceCanvas.height;
+
+  // Draw the original image
+  originalCtx.clearRect(
+    0,
+    0,
+    originalCanvasElement.width,
+    originalCanvasElement.height
+  );
+  originalCtx.drawImage(sourceCanvas, 0, 0);
+
+  // Show original image info
+  originalInfoElement.innerHTML = `
+    <p>Gambar Asli (Sebelum Preprocessing):</p>
+    <p>Ukuran: ${sourceCanvas.width}x${sourceCanvas.height} piksel</p>
+  `;
+
+  // Make the original image container visible
+  originalImageContainer.style.display = "block";
+}
+
+// Function to create and show all preprocessing stages for debugging
+function showPreprocessingStages(originalCanvas) {
+  if (!isDebugMode) return;
+
+  // First, show the original image
+  showOriginalImage(originalCanvas);
+
+  // Get the processing steps
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = 224;
+  tempCanvas.height = 224;
+  const tempCtx = tempCanvas.getContext("2d");
+
+  // Get input dimensions
+  const inputWidth = originalCanvas.width;
+  const inputHeight = originalCanvas.height;
+
+  // Resizing without cropping - preserves entire image by scaling to fit 224x224
+  tempCtx.drawImage(
+    originalCanvas,
+    0,
+    0,
+    inputWidth,
+    inputHeight,
+    0,
+    0,
+    224,
+    224
+  );
+
+  // Display the image that will be sent to the model
+  debugCtx.clearRect(0, 0, debugCanvasElement.width, debugCanvasElement.height);
+  debugCtx.drawImage(tempCanvas, 0, 0);
+
+  // Show preprocessing info
+  preprocessInfoElement.innerHTML = `
+    <p>Gambar Preprocessing untuk Model (224x224):</p>
+    <p>Gambar Asli: ${inputWidth}x${inputHeight} → Resize tanpa crop ke 224x224</p>
+    <p>Catatan: Gambar akan terlihat terdistorsi jika rasio aspek asli tidak 1:1</p>
+  `;
+
+  // Make the debug section visible
+  debugImageContainer.style.display = "block";
+}
+
 // Capture image and run prediction using the model.js predict method directly
 async function captureAndPredict() {
   if (!isCameraStarted || !isModelLoaded) {
@@ -255,6 +415,9 @@ async function captureAndPredict() {
 
     // Show processing status
     showStatus("Memproses gambar...");
+
+    // Show preprocessing stages for debugging
+    showPreprocessingStages(canvasElement);
 
     // Small delay to allow status update to render
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -316,6 +479,9 @@ function setupImageUpload() {
             // Display the captured image
             capturedImageElement.src = canvasElement.toDataURL("image/png");
             capturedImageContainer.style.display = "block";
+
+            // Show preprocessing stages for debugging
+            showPreprocessingStages(canvasElement);
 
             // Process the image if model is loaded
             if (isModelLoaded) {
@@ -412,6 +578,37 @@ function enableInterface() {
   startButton.addEventListener("click", toggleCamera);
   captureButton.addEventListener("click", captureAndPredict);
   setupImageUpload();
+
+  // Create buttons for downloading images
+  const downloadOriginalButton = document.createElement("button");
+  downloadOriginalButton.textContent = "Download Gambar Asli";
+  downloadOriginalButton.className = "download-btn";
+  downloadOriginalButton.style.cssText =
+    "margin: 10px; padding: 8px 16px; background-color: #0000FF; color: white; border: none; border-radius: 4px;";
+  downloadOriginalButton.addEventListener("click", () => {
+    if (originalCanvasElement.toDataURL) {
+      const link = document.createElement("a");
+      link.download = "original-image.png";
+      link.href = originalCanvasElement.toDataURL();
+      link.click();
+    }
+  });
+  originalImageContainer.appendChild(downloadOriginalButton);
+
+  const downloadPreprocessedButton = document.createElement("button");
+  downloadPreprocessedButton.textContent = "Download Gambar Preprocessing";
+  downloadPreprocessedButton.className = "download-btn";
+  downloadPreprocessedButton.style.cssText =
+    "margin: 10px; padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px;";
+  downloadPreprocessedButton.addEventListener("click", () => {
+    if (debugCanvasElement.toDataURL) {
+      const link = document.createElement("a");
+      link.download = "preprocessed-image.png";
+      link.href = debugCanvasElement.toDataURL();
+      link.click();
+    }
+  });
+  debugImageContainer.appendChild(downloadPreprocessedButton);
 
   // Add key bindings for faster operation
   document.addEventListener("keydown", (e) => {
